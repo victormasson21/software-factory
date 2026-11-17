@@ -1,0 +1,77 @@
+name: service-deploy
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+      image:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+    secrets:
+      KUBE_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  ROLLOUT_TIMEOUT: 120s
+  SMOKE_ATTEMPTS: 12
+  SMOKE_DELAY_SECONDS: 5
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      SERVICE: ${{ inputs.service }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      IMAGE: ${{ inputs.image }}
+      VERSION: ${{ inputs.version }}
+      HOST: ${{ vars.DEV_HOST }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Configure kubectl
+        env:
+          KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
+          KUBE_CA: ${{ vars.KUBE_CA }}
+        run: |
+          base64 --decode <<< "$KUBE_CA" > "$RUNNER_TEMP/ca.crt"
+          kubectl config set-cluster factory --server "https://$HOST:6443" \
+            --certificate-authority "$RUNNER_TEMP/ca.crt" --embed-certs
+          kubectl config set-credentials deployer --token "$KUBE_TOKEN"
+          kubectl config set-context factory --cluster factory --user deployer \
+            --namespace "$ENVIRONMENT"
+          kubectl config use-context factory
+      - name: Apply
+        id: apply
+        working-directory: deploy/${{ inputs.environment }}
+        run: |
+          kustomize edit set image "$SERVICE=$IMAGE"
+          kubectl apply --kustomize .
+      - name: Wait for rollout
+        run: kubectl rollout status "deployment/$SERVICE" --timeout "$ROLLOUT_TIMEOUT"
+      - name: Smoke test
+        run: |
+          for _ in $(seq "$SMOKE_ATTEMPTS"); do
+            if curl --fail --silent "http://$HOST/healthz" |
+              jq --exit-status --arg version "$VERSION" '.version == $version' > /dev/null; then
+              exit 0
+            fi
+            sleep "$SMOKE_DELAY_SECONDS"
+          done
+          echo "healthz did not return version $VERSION" >&2
+          exit 1
+      - name: Undo rollout
+        if: failure() && steps.apply.outcome == 'success'
+        run: kubectl rollout undo "deployment/$SERVICE"

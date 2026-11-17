@@ -10,3 +10,4 @@ up:
 
 down:
 	$(TERRAFORM) destroy
+	gh variable delete DEV_HOST --repo $(REPO)
