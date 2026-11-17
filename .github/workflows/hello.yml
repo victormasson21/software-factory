@@ -2,12 +2,6 @@ name: hello
 
 on:
   pull_request:
-    paths:
-      - services/hello/**
-      - deploy/**
-      - .github/workflows/hello.yml
-      - .github/workflows/service-ci.yml
-      - .github/workflows/service-deploy.yml
   push:
     branches: [main]
     paths:
