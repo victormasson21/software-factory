@@ -27,4 +27,4 @@ def test_root_returns_hello() -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json() == {"message": "hello"}
+    assert response.json() == {"message": "broken on purpose"}
