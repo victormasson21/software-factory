@@ -1,0 +1,69 @@
+name: service-ci
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        required: true
+        type: string
+    outputs:
+      image:
+        value: ${{ jobs.build.outputs.image }}
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.9.26"
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/${{ inputs.service }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/${{ inputs.service }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv run --locked pytest --cov=src --cov-fail-under="$COVERAGE_THRESHOLD"
+
+  build:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/${{ inputs.service }}
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}/${{ inputs.service }}:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: docker build --build-arg VERSION="$GITHUB_SHA" --tag "$IMAGE" .
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+        run: |
+          docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<< "$REGISTRY_TOKEN"
+          docker push "$IMAGE"
+      - id: image
+        run: echo "ref=$IMAGE" >> "$GITHUB_OUTPUT"
