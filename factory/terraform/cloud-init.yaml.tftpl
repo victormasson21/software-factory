@@ -1,0 +1,7 @@
+#cloud-config
+write_files:
+  - path: ${manifests_dir}/deployer.yaml
+    encoding: b64
+    content: ${deployer_manifest}
+runcmd:
+  - curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION='${k3s_version}' sh -s - --tls-san ${ipv4}
