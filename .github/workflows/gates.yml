@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-      - run: docker run --rm --volume "$PWD:/repo" "$GITLEAKS_IMAGE" git --redact --verbose /repo
+      - run: docker run --rm --volume "$PWD:/repo" "$GITLEAKS_IMAGE" git --redact --verbose --log-opts "-m HEAD" /repo
 
   guard-tests:
     runs-on: ubuntu-latest

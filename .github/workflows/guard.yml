@@ -1,0 +1,45 @@
+name: guard
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.9.26"
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      BASE: ${{ github.event.pull_request.base.sha }}
+      HEAD: ${{ github.event.pull_request.head.sha }}
+      AUTHOR: ${{ github.event.pull_request.user.login }}
+      OWNER: ${{ github.repository_owner }}
+      PULL: ${{ github.event.pull_request.number }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: git fetch origin "refs/pull/$PULL/head"
+      - run: |
+          approvals=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PULL/reviews" --paginate --jq \
+            ".[] | select(.state == \"APPROVED\" and .user.login == \"$OWNER\" and .commit_id == \"$HEAD\") | .id")
+          flags=()
+          if [[ "$AUTHOR" == "$OWNER" || -n "$approvals" ]]; then
+            flags+=(--advisory)
+          fi
+          uv run --no-project --python "$PYTHON_VERSION" factory/guard/guard.py \
+            --base "$BASE" --head "$HEAD" "${flags[@]}"

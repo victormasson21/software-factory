@@ -1,0 +1,14 @@
+/factory/ @victormasson21
+/deploy/ @victormasson21
+/.github/ @victormasson21
+/Makefile @victormasson21
+ruff.toml @victormasson21
+.ruff.toml @victormasson21
+conftest.py @victormasson21
+pytest.ini @victormasson21
+.pytest.ini @victormasson21
+pytest.toml @victormasson21
+.pytest.toml @victormasson21
+.trivyignore @victormasson21
+.gitleaksignore @victormasson21
+.gitleaks.toml @victormasson21
