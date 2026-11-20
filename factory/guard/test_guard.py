@@ -20,6 +20,7 @@ def test_clean_change_has_no_violation() -> None:
         ".github/workflows/hello.yml",
         "Makefile",
         "services/hello/ruff.toml",
+        "services/hello/.ruff.toml",
         "services/hello/.trivyignore",
         ".gitleaksignore",
         ".gitleaks.toml",

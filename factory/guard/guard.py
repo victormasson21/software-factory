@@ -9,7 +9,13 @@ from pathlib import PurePosixPath
 DIFF_LINE_LIMIT = 400
 PROTECTED_DIRS = ("factory", "deploy", ".github")
 PROTECTED_ROOT_FILES = ("Makefile",)
-PROTECTED_NAMES = ("ruff.toml", ".trivyignore", ".gitleaksignore", ".gitleaks.toml")
+PROTECTED_NAMES = (
+    "ruff.toml",
+    ".ruff.toml",
+    ".trivyignore",
+    ".gitleaksignore",
+    ".gitleaks.toml",
+)
 UNCOUNTED_NAMES = ("uv.lock",)
 TESTS_DIR = "tests"
 ADDED = "A"
