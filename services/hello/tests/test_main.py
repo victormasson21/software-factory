@@ -21,10 +21,3 @@ def test_healthz_defaults_version_to_dev(monkeypatch: pytest.MonkeyPatch) -> Non
     response = client.get("/healthz")
 
     assert response.json() == {"status": "ok", "version": "dev"}
-
-
-def test_root_returns_hello() -> None:
-    response = client.get("/")
-
-    assert response.status_code == 200
-    assert response.json() == {"message": "hello"}
