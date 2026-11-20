@@ -5,6 +5,7 @@ description = "Hello-world service, the factory's test subject"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.163.1",
+    "urllib3==1.24.1",
     "uvicorn>=0.54.0",
 ]
 
