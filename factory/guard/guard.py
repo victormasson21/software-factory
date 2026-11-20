@@ -12,6 +12,11 @@ PROTECTED_ROOT_FILES = ("Makefile",)
 PROTECTED_NAMES = (
     "ruff.toml",
     ".ruff.toml",
+    "conftest.py",
+    "pytest.ini",
+    ".pytest.ini",
+    "pytest.toml",
+    ".pytest.toml",
     ".trivyignore",
     ".gitleaksignore",
     ".gitleaks.toml",

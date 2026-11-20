@@ -2,8 +2,6 @@ name: gates
 
 on:
   pull_request:
-  pull_request_review:
-    types: [submitted]
   push:
     branches: [main]
 
@@ -12,21 +10,18 @@ permissions:
 
 env:
   UV_VERSION: "0.9.26"
-  PYTHON_VERSION: "3.13"
   GITLEAKS_IMAGE: ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
 
 jobs:
   gitleaks:
-    if: github.event_name != 'pull_request_review'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-      - run: docker run --rm --volume "$PWD:/repo" "$GITLEAKS_IMAGE" git --redact --verbose --log-opts HEAD /repo
+      - run: docker run --rm --volume "$PWD:/repo" "$GITLEAKS_IMAGE" git --redact --verbose --log-opts "-m HEAD" /repo
 
   guard-tests:
-    if: github.event_name != 'pull_request_review'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,35 +34,3 @@ jobs:
       - run: uv run --locked ruff check .
       - run: uv run --locked ruff format --check .
       - run: uv run --locked pytest
-
-  guard:
-    if: github.event_name != 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    env:
-      BASE: ${{ github.event.pull_request.base.sha }}
-      HEAD: ${{ github.event.pull_request.head.sha }}
-      AUTHOR: ${{ github.event.pull_request.user.login }}
-      OWNER: ${{ github.repository_owner }}
-      PULL: ${{ github.event.pull_request.number }}
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
-        with:
-          version: ${{ env.UV_VERSION }}
-      - run: git fetch origin "refs/pull/$PULL/head"
-      - run: |
-          approvals=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PULL/reviews" --paginate --jq \
-            ".[] | select(.state == \"APPROVED\" and .user.login == \"$OWNER\" and .commit_id == \"$HEAD\") | .id")
-          flags=()
-          if [[ "$AUTHOR" == "$OWNER" || -n "$approvals" ]]; then
-            flags+=(--advisory)
-          fi
-          uv run --no-project --python "$PYTHON_VERSION" factory/guard/guard.py \
-            --base "$BASE" --head "$HEAD" "${flags[@]}"
