@@ -201,6 +201,34 @@ Decisions 1 to 10 were made on 2026-11-13, decision 11 on 2026-11-16, decisions 
 - A retry starts when a check fails on the turn's PR. It uses the next model up: small → mid → large. A turn on the large model retries on the large model.
 - A failed rollout or smoke test triggers `kubectl rollout undo`, so dev returns to the last good version.
 - Guard check override: the guard passes when the owner has approved the PR's current commit. A label cannot override it, because the bot can add labels.
+- Build order: step 4 was built before steps 2 and 3, because the owner delays the VM and step 4 needs none.
+- Guard, who it stops: each PR whose author is not the repository owner. On an owner PR the guard runs and reports, but does not fail.
+- Guard, trusted code: the workflow runs on `pull_request_target` and the script comes from the base commit. A PR cannot change the guard that judges it.
+- Guard, after an approval: the owner re-runs the guard job. No review event starts it, because a skipped job from such a run could replace a failed check.
+- Guard, protected paths: `factory/`, `deploy/`, `.github/`, the root `Makefile`, and each file named `ruff.toml`, `.ruff.toml`, `conftest.py`, `pytest.ini`, `.pytest.ini`, `pytest.toml`, `.pytest.toml`, `.trivyignore`, `.gitleaksignore` or `.gitleaks.toml`.
+- Guard, tests: each change to an existing file under a `tests/` folder fails, also when lines are only added. A rename counts as a removal. The bot adds tests in new files.
+- Guard, size: at most 400 changed lines. Files named `uv.lock` do not count.
+- Trivy skips findings with no fix (`--ignore-unfixed`). A finding with no fix would block each PR with no possible action.
+- Gitleaks scans the history of the PR's merge commit, not each branch in the repo.
+- Scanners run as container images pinned by digest. No third-party action is used for them.
+
+## Evidence
+
+### Step 4 (2026-11-20)
+
+- Leaked secret: PR #7 added a fake private key. `gitleaks` failed.
+- Vulnerable dependency: PR #8 added `urllib3` 1.24.1. `ci / build` failed at the Trivy image scan.
+- Deleted test: PR #9 removed one test. The guard reported `existing test changed or removed: services/hello/tests/test_main.py`. All other checks passed, so only the guard saw the removal.
+- First scan of `main`: Trivy found 6 HIGH findings in the hello image (1 in `zlib1g`, 5 in the packages that pip vendors). The image now upgrades its OS packages and has no pip.
+- Not proven: the failing path of the guard and the approval override. Both need a PR by a non-owner, so they wait for the GitHub App (step 2). Unit tests cover the exit status.
+
+### Known limits of the guard
+
+- A change to `[tool.coverage]` in a `pyproject.toml` can hide files from the coverage threshold.
+- A new `pyproject.toml` below a service folder can replace the ruff config for that subtree.
+- An inline `gitleaks:allow` comment hides a secret from Gitleaks.
+- The conventions file is not protected. It gets a name at step 8.
+- An owner approval stays valid after a later "request changes" on the same commit.
 
 ## Left to the builder
 
